@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Polygon, Marker, Popup, useMapEvents } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Polygon, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import { point } from '@turf/helpers';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 
@@ -15,11 +15,39 @@ const MapEventHandler = ({ setPolygon, setMarkers }) => {
   return null;
 };
 
+const CurrentLocationSetter = ({ currentLocation }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (currentLocation) {
+      map.setView(currentLocation);
+    }
+  }, [currentLocation, map]);
+  return null;
+};
+
 const MapComponent = () => {
   const [polygon, setPolygon] = useState([]);
   const [markers, setMarkers] = useState([]);
   const [pointCoords, setPointCoords] = useState({ lat: null, lng: null });
   const [isInside, setIsInside] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState([51.505, -0.09]); // Default to London
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const { latitude, longitude } = position.coords;
+          console.log("Current position:", latitude, longitude); // Logging for debugging
+          setCurrentLocation([latitude, longitude]);
+        },
+        error => {
+          console.error("Error obtaining location:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
+    }
+  }, []);
 
   const checkPoint = () => {
     if (pointCoords.lat !== null && pointCoords.lng !== null && polygon.length > 2) {
@@ -38,7 +66,7 @@ const MapComponent = () => {
 
   return (
     <div>
-      <MapContainer center={[51.505, -0.09]} zoom={13} style={{ height: '400px', width: '100%' }}>
+      <MapContainer center={currentLocation} zoom={13} style={{ height: '400px', width: '100%' }}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -54,6 +82,7 @@ const MapComponent = () => {
           </Marker>
         ))}
         <MapEventHandler setPolygon={setPolygon} setMarkers={setMarkers} />
+        <CurrentLocationSetter currentLocation={currentLocation} />
       </MapContainer>
       <div>
         <h3>Check Point</h3>
