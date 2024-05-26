@@ -30,62 +30,39 @@ const MapComponent = () => {
   const [markers, setMarkers] = useState([]);
   const [pointCoords, setPointCoords] = useState({ lat: null, lng: null });
   const [isInside, setIsInside] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null); // Default to null
-  const [savedPolygons, setSavedPolygons] = useState([]); // Simulated database
+  const [currentLocation, setCurrentLocation] = useState([51.505, -0.09]); // Default to London
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         position => {
           const { latitude, longitude } = position.coords;
+          console.log("Current position:", latitude, longitude); // Logging for debugging
           setCurrentLocation([latitude, longitude]);
         },
         error => {
           console.error("Error obtaining location:", error);
-          // Default location if geolocation fails
-          setCurrentLocation([51.505, -0.09]);
         }
       );
     } else {
       console.error("Geolocation is not supported by this browser.");
-      // Default location if geolocation is not supported
-      setCurrentLocation([51.505, -0.09]);
     }
   }, []);
 
-  const savePolygon = () => {
-    if (polygon.length > 2) {
-      setSavedPolygons(prevPolygons => [...prevPolygons, polygon]);
-      setPolygon([]);
-      setMarkers([]);
-      alert('Polygon saved!');
-    } else {
-      alert('A polygon requires at least 3 points.');
-    }
-  };
-
   const checkPoint = () => {
-    if (pointCoords.lat !== null && pointCoords.lng !== null) {
+    if (pointCoords.lat !== null && pointCoords.lng !== null && polygon.length > 2) {
       const pt = point([pointCoords.lng, pointCoords.lat]);
-      const insideAnyPolygon = savedPolygons.some(poly => {
-        const polyCoords = poly.map(coord => [coord[1], coord[0]]);
-        const polyFeature = {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [polyCoords]
-          }
-        };
-        return booleanPointInPolygon(pt, polyFeature);
-      });
-
-      setIsInside(insideAnyPolygon);
+      const poly = {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [polygon]
+        }
+      };
+      const inside = booleanPointInPolygon(pt, poly);
+      setIsInside(inside);
     }
   };
-
-  if (!currentLocation) {
-    return <div>Loading...</div>; // Show loading state until location is determined
-  }
 
   return (
     <div>
@@ -94,9 +71,6 @@ const MapComponent = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        {savedPolygons.map((poly, index) => (
-          <Polygon key={index} positions={poly.map(coord => [coord[1], coord[0]])} />
-        ))}
         {polygon.length > 0 && (
           <Polygon positions={polygon.map(coord => [coord[1], coord[0]])} />
         )}
@@ -111,7 +85,6 @@ const MapComponent = () => {
         <CurrentLocationSetter currentLocation={currentLocation} />
       </MapContainer>
       <div>
-        <button onClick={savePolygon}>Save Polygon</button>
         <h3>Check Point</h3>
         <input
           type="number"
@@ -127,16 +100,6 @@ const MapComponent = () => {
         {isInside !== null && (
           <p>The point is {isInside ? 'inside' : 'outside'} the polygon.</p>
         )}
-      </div>
-      <div>
-        <h3>Saved Polygons</h3>
-        <ul>
-          {savedPolygons.map((poly, index) => (
-            <li key={index}>
-              Polygon {index + 1}: {JSON.stringify(poly)}
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );
